@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "SplitEase",
+    "slug": "splitease",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.splitease.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.splitease.app"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
