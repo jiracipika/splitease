@@ -22,7 +22,7 @@ export default function Landing() {
         <h1 style={{ fontSize: 36, fontWeight: 700, color: '#fff', letterSpacing: '-1px', position: 'relative', marginBottom: 8 }}>
           Splitease
         </h1>
-        <p style={{ fontSize: 16, color: '#fff99', position: 'relative', maxWidth: 400, margin: '0 auto 28px', lineHeight: 1.5 }}>
+        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.88)', position: 'relative', maxWidth: 400, margin: '0 auto 28px', lineHeight: 1.5 }}>
           Split expenses beautifully
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', position: 'relative' }}>
@@ -30,7 +30,7 @@ export default function Landing() {
             height: 48, borderRadius: 14, padding: '0 28px',
             background: '#fff', color: '#333', fontSize: 16, fontWeight: 600,
             display: 'inline-flex', alignItems: 'center', textDecoration: 'none',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.15)', cursor: 'pointer',
           }}>
             Get Started
           </Link>
