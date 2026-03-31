@@ -1,10 +1,14 @@
 {
   "name": "splitease",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "cd apps/web && next dev",
     "build": "cd apps/web && next build",
     "start": "cd apps/web && next start"
-  }
+  },
+  "packageManager": "npm@10.9.2"
 }
