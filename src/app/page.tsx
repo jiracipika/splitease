@@ -1,14 +1,29 @@
 'use client';
 import Link from 'next/link';
-
-const FEATURES = [
-  { label: 'My Groups', href: '/groups', icon: '✨', desc: 'My Groups feature coming soon' },
-  { label: 'Group Detail', href: '/groups', icon: '✨', desc: 'Group Detail feature coming soon' },
-  { label: 'Expenses', href: '/expenses', icon: '✨', desc: 'Expenses feature coming soon' },
-  { label: 'New Expense', href: '/expenses', icon: '✨', desc: 'New Expense feature coming soon' }
-];
+import { useState, useEffect } from 'react';
+import { getGroups, getExpenses, getMembers, ensureSeeded, type Group, type Expense } from '@/lib/store';
 
 export default function Landing() {
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [memberCount, setMemberCount] = useState(0);
+
+  useEffect(() => {
+    ensureSeeded();
+    setGroups(getGroups());
+    setExpenses(getExpenses());
+    setMemberCount(getMembers().length);
+  }, []);
+
+  const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const FEATURES = [
+    { label: 'My Groups', href: '/groups', icon: '👥', desc: `${groups.length} group${groups.length !== 1 ? 's' : ''}` },
+    { label: 'Expenses', href: '/expenses', icon: '💳', desc: `${expenses.length} expense${expenses.length !== 1 ? 's' : ''}` },
+    { label: 'Add Expense', href: '/expenses/new', icon: '➕', desc: 'Log a new expense' },
+    { label: 'Settle Up', href: '/settle', icon: '✅', desc: 'Balance and settle debts' },
+  ];
+
   return (
     <div style={{ background: 'var(--ios-bg)', minHeight: '100vh' }}>
       <div style={{
@@ -35,6 +50,22 @@ export default function Landing() {
             Get Started
           </Link>
         </div>
+        {groups.length > 0 && (
+          <div style={{ display: 'flex', gap: 32, justifyContent: 'center', marginTop: 28, position: 'relative' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>{groups.length}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Groups</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>{expenses.length}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Expenses</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>${totalSpent.toFixed(2)}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Total Tracked</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '40px 16px' }}>
