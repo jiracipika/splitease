@@ -276,7 +276,35 @@ function save(key: string, value: unknown) {
 }
 
 function uid() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+/** Convert a currency amount to integer cents, rejecting invalid values. */
+function toCents(amount: number): number {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error('Amounts must be a non-negative finite number.');
+  }
+  return Math.round((amount + Number.EPSILON) * 100);
+}
+
+function fromCents(cents: number): number {
+  return cents / 100;
+}
+
+function assertExpenseIsValid(data: Omit<Expense, 'id'>) {
+  if (!data.description.trim()) throw new Error('An expense description is required.');
+  if (!data.groupId || !data.paidById || data.splits.length === 0) {
+    throw new Error('An expense must include a group, payer, and at least one split.');
+  }
+  if (Array.from(new Set(data.splits.map(split => split.memberId))).length !== data.splits.length) {
+    throw new Error('An expense cannot include the same member more than once.');
+  }
+  const splitTotal = data.splits.reduce((total, split) => total + toCents(split.amount), 0);
+  if (splitTotal !== toCents(data.amount)) {
+    throw new Error('Split amounts must add up exactly to the expense amount.');
+  }
 }
 
 // ─── Seed ─────────────────────────────────────────────────────────────────────
@@ -337,7 +365,7 @@ export function createGroup(name: string, emoji: string, memberIds: string[]): G
 export function addMemberToGroup(groupId: string, memberId: string) {
   const groups = getGroups();
   save(KEYS.groups, groups.map(g =>
-    g.id === groupId ? { ...g, memberIds: [...new Set([...g.memberIds, memberId])] } : g
+    g.id === groupId ? { ...g, memberIds: Array.from(new Set([...g.memberIds, memberId])) } : g
   ));
 }
 
@@ -352,6 +380,7 @@ export function getGroupExpenses(groupId: string): Expense[] {
 }
 
 export function addExpense(data: Omit<Expense, 'id'>): Expense {
+  assertExpenseIsValid(data);
   const expense: Expense = { ...data, id: uid() };
   save(KEYS.expenses, [...getExpenses(), expense]);
   return expense;
@@ -364,6 +393,10 @@ export function getSettlements(): Settlement[] {
 }
 
 export function addSettlement(data: Omit<Settlement, 'id'>): Settlement {
+  if (!data.groupId || !data.fromId || !data.toId || data.fromId === data.toId) {
+    throw new Error('A settlement must be between two different members in a group.');
+  }
+  toCents(data.amount);
   const s: Settlement = { ...data, id: uid() };
   save(KEYS.settlements, [...getSettlements(), s]);
   return s;
@@ -373,25 +406,27 @@ export function addSettlement(data: Omit<Settlement, 'id'>): Settlement {
 
 /** Returns net balance per member (positive = owed money, negative = owes money) */
 export function calcNetBalances(memberIds: string[], expenses: Expense[], settlements: Settlement[]): Record<string, number> {
-  const bal: Record<string, number> = {};
-  for (const id of memberIds) bal[id] = 0;
+  const balancesInCents: Record<string, number> = {};
+  for (const id of memberIds) balancesInCents[id] = 0;
 
   for (const exp of expenses) {
     // Payer is owed the full amount
-    if (bal[exp.paidById] !== undefined) bal[exp.paidById] += exp.amount;
+    if (balancesInCents[exp.paidById] !== undefined) balancesInCents[exp.paidById] += toCents(exp.amount);
     // Each split member owes their share
     for (const split of exp.splits) {
-      if (bal[split.memberId] !== undefined) bal[split.memberId] -= split.amount;
+      if (balancesInCents[split.memberId] !== undefined) balancesInCents[split.memberId] -= toCents(split.amount);
     }
   }
 
   // Apply settlements
   for (const s of settlements) {
-    if (bal[s.fromId] !== undefined) bal[s.fromId] -= s.amount; // debtor paid
-    if (bal[s.toId]   !== undefined) bal[s.toId]   += s.amount; // creditor received
+    const amount = toCents(s.amount);
+    // Paying reduces the debtor's negative balance; receiving reduces the creditor's positive balance.
+    if (balancesInCents[s.fromId] !== undefined) balancesInCents[s.fromId] += amount;
+    if (balancesInCents[s.toId]   !== undefined) balancesInCents[s.toId]   -= amount;
   }
 
-  return bal;
+  return Object.fromEntries(Object.entries(balancesInCents).map(([id, cents]) => [id, fromCents(cents)]));
 }
 
 /** Simplify debts to minimum transactions */
@@ -400,8 +435,9 @@ export function simplifyDebts(balances: Record<string, number>): DebtSummary[] {
   const debtors:   { id: string; amount: number }[] = [];
 
   for (const [id, bal] of Object.entries(balances)) {
-    if (bal > 0.01)  creditors.push({ id, amount:  bal });
-    if (bal < -0.01) debtors.push({   id, amount: -bal });
+    const amount = fromCents(toCents(Math.abs(bal)));
+    if (bal > 0.005)  creditors.push({ id, amount });
+    if (bal < -0.005) debtors.push({ id, amount });
   }
 
   creditors.sort((a, b) => b.amount - a.amount);
@@ -414,7 +450,7 @@ export function simplifyDebts(balances: Record<string, number>): DebtSummary[] {
     const c = creditors[ci];
     const d = debtors[di];
     const amount = Math.min(c.amount, d.amount);
-    result.push({ fromId: d.id, toId: c.id, amount: +amount.toFixed(2) });
+    result.push({ fromId: d.id, toId: c.id, amount: fromCents(toCents(amount)) });
     c.amount -= amount;
     d.amount -= amount;
     if (c.amount < 0.01) ci++;
