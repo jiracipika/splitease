@@ -1,0 +1,40 @@
+# Codemagic CI/CD configuration for SplitEase
+# Monorepo: apps/web (Next.js), apps/mobile (Expo)
+
+workflows:
+  android-debug:
+    name: SplitEase Android APK
+    max_build_duration: 45
+    environment:
+      node: 22
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+    cache:
+      cache_paths:
+        - ~/.npm
+        - $CM_BUILD_DIR/node_modules
+        - $CM_BUILD_DIR/apps/mobile/node_modules
+    scripts:
+      - name: Install root dependencies
+        script: |
+          npm ci
+      - name: Install mobile dependencies
+        script: |
+          cd apps/mobile
+          npm ci
+      - name: Generate Android native project
+        script: |
+          cd apps/mobile
+          npx expo prebuild --platform android --clean --no-install
+      - name: Build debug APK
+        script: |
+          cd apps/mobile/android
+          ./gradlew assembleDebug
+    artifacts:
+      - apps/mobile/android/app/build/outputs/apk/debug/*.apk
+      - apps/mobile/android/app/build/reports/**/*
