@@ -3,22 +3,22 @@
 @tailwind utilities;
 
 :root {
-  /* Colors */
-  --ios-bg:       #F2F2F7;
-  --ios-bg2:      #FFFFFF;
-  --ios-label:    #000000;
-  --ios-label2:   #3C3C43;
-  --ios-label3:   #8E8E93;
-  --ios-label4:   #C7C7CC;
-  --ios-sep:      rgba(60, 60, 67, 0.12);
-  --ios-separator: rgba(60, 60, 67, 0.12);
-  --ios-blue:     #007AFF;
+  /* Colors — Dark theme matching mobile app */
+  --ios-bg:       #0a0a0f;
+  --ios-bg2:      #1c1c2e;
+  --ios-label:    #FFFFFF;
+  --ios-label2:   rgba(255,255,255,0.75);
+  --ios-label3:   #888;
+  --ios-label4:   #555;
+  --ios-sep:      rgba(255,255,255,0.08);
+  --ios-separator: rgba(255,255,255,0.08);
+  --ios-blue:     #34C759;
   --ios-green:    #34C759;
   --ios-orange:   #FF9500;
   --ios-red:      #FF3B30;
-  --ios-purple:   #AF52DE;
-  --ios-fill:     rgba(120, 120, 128, 0.12);
-  --ios-fill2:    rgba(120, 120, 128, 0.08);
+  --ios-purple:   #BF5AF2;
+  --ios-fill:     rgba(255,255,255,0.08);
+  --ios-fill2:    rgba(255,255,255,0.04);
 
   /* Spacing */
   --space-xs:  4px;
@@ -37,8 +37,8 @@
   --ios-radius:  12px;
 
   /* Elevation */
-  --ios-shadow:    0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-raised: 0 4px 14px rgba(0, 0, 0, 0.12);
+  --ios-shadow:    0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-raised: 0 4px 14px rgba(0, 0, 0, 0.4);
 
   /* Motion */
   --ease-out:    cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -89,7 +89,7 @@ button {
 }
 
 button:hover:not(:disabled) {
-  filter: brightness(0.92);
+  filter: brightness(1.15);
 }
 
 button:active:not(:disabled) {

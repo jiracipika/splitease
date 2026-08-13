@@ -43,7 +43,7 @@ export default function Landing() {
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', position: 'relative' }}>
           <Link href="/groups" style={{
             height: 48, borderRadius: 14, padding: '0 28px',
-            background: '#fff', color: '#333', fontSize: 16, fontWeight: 600,
+            background: '#1c1c2e', color: '#fff', fontSize: 16, fontWeight: 600,
             display: 'inline-flex', alignItems: 'center', textDecoration: 'none',
             boxShadow: '0 4px 14px rgba(0,0,0,0.15)', cursor: 'pointer',
           }}>
