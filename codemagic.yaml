@@ -7,13 +7,6 @@ workflows:
     max_build_duration: 45
     environment:
       node: 22
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
-      cancel_previous_builds: true
     cache:
       cache_paths:
         - ~/.npm
