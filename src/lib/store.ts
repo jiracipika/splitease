@@ -301,6 +301,17 @@ function assertExpenseIsValid(data: Omit<Expense, 'id'>) {
   if (Array.from(new Set(data.splits.map(split => split.memberId))).length !== data.splits.length) {
     throw new Error('An expense cannot include the same member more than once.');
   }
+  const group = getGroup(data.groupId);
+  if (group) {
+    if (!group.memberIds.includes(data.paidById)) {
+      throw new Error('The payer must be a member of the group.');
+    }
+    for (const split of data.splits) {
+      if (!group.memberIds.includes(split.memberId)) {
+        throw new Error('Every split must belong to a member of the group.');
+      }
+    }
+  }
   const splitTotal = data.splits.reduce((total, split) => total + toCents(split.amount), 0);
   if (splitTotal !== toCents(data.amount)) {
     throw new Error('Split amounts must add up exactly to the expense amount.');
