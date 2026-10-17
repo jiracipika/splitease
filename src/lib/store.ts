@@ -397,6 +397,15 @@ export function addExpense(data: Omit<Expense, 'id'>): Expense {
   return expense;
 }
 
+/** Remove an expense by id. Returns false when the id is unknown. */
+export function deleteExpense(id: string): boolean {
+  const expenses = getExpenses();
+  const next = expenses.filter(e => e.id !== id);
+  if (next.length === expenses.length) return false;
+  save(KEYS.expenses, next);
+  return true;
+}
+
 // ─── Settlements ──────────────────────────────────────────────────────────────
 
 export function getSettlements(): Settlement[] {
@@ -411,6 +420,15 @@ export function addSettlement(data: Omit<Settlement, 'id'>): Settlement {
   const s: Settlement = { ...data, id: uid() };
   save(KEYS.settlements, [...getSettlements(), s]);
   return s;
+}
+
+/** Undo a recorded settlement by id. Returns false when the id is unknown. */
+export function deleteSettlement(id: string): boolean {
+  const settlements = getSettlements();
+  const next = settlements.filter(s => s.id !== id);
+  if (next.length === settlements.length) return false;
+  save(KEYS.settlements, next);
+  return true;
 }
 
 // ─── Balance Calculation ──────────────────────────────────────────────────────

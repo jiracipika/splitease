@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {
   CATEGORIES,
   addExpense,
+  deleteExpense,
   ensureSeeded,
   fmt,
   fmtDate,
@@ -29,6 +30,7 @@ export default function Expenses() {
   const [category, setCategory] = useState<Category>('food');
   const [filter, setFilter] = useState<'all' | string>('all');
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -210,6 +212,22 @@ export default function Expenses() {
                 </div>
               </div>
               <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--ios-label)' }}>{fmt(e.amount)}</div>
+              <button
+                onClick={() => {
+                  if (confirmDeleteId === e.id) {
+                    deleteExpense(e.id);
+                    setConfirmDeleteId(null);
+                    setExpenses(getGroupExpenses(activeGroupId).sort((x, y) => y.date.localeCompare(x.date)));
+                  } else {
+                    setConfirmDeleteId(e.id);
+                    window.setTimeout(() => setConfirmDeleteId(cur => (cur === e.id ? null : cur)), 3000);
+                  }
+                }}
+                aria-label={confirmDeleteId === e.id ? `Confirm delete expense ${e.description}` : `Delete expense ${e.description}`}
+                style={{ padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--ios-separator)', cursor: 'pointer', background: 'var(--ios-bg2)', color: 'var(--ios-red)', whiteSpace: 'nowrap' }}
+              >
+                {confirmDeleteId === e.id ? 'Sure?' : '✕'}
+              </button>
             </div>
           ))}
           {filtered.length === 0 && hydrated && (

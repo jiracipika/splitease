@@ -19,9 +19,14 @@ vi.stubGlobal('localStorage', {
 
 import {
   addExpense,
+  addSettlement,
   calcNetBalances,
+  deleteExpense,
+  deleteSettlement,
   ensureSeeded,
+  getExpenses,
   getMembers,
+  getSettlements,
   simplifyDebts,
 } from '../src/lib/store';
 import type { Expense, Settlement } from '../src/lib/store';
@@ -112,5 +117,44 @@ describe('addExpense validation', () => {
     const [a] = seedIds();
     expect(() => addExpense(exp(a, 10.0, [['ghost-member', 10]] as never))).toThrow(/member of the group/);
     expect(() => addExpense({ ...exp(a, 10.0, [[a, 10]] as never), paidById: 'ghost-payer' })).toThrow(/member of the group/);
+  });
+});
+
+describe('deletes (undo)', () => {
+  it('deleting a settlement restores the balances from before it was recorded', () => {
+    const [a, b] = seedIds();
+    const expenses = [exp(a, 30.0, [[a, 0], [b, 30]] as never)];
+    const before = calcNetBalances([a, b], expenses, getSettlements());
+    const s = addSettlement({ groupId: 'g1', fromId: b, toId: a, amount: 12, date: '2026-09-27' });
+    const during = calcNetBalances([a, b], expenses, getSettlements());
+    expect(during[a]).toBeCloseTo(before[a] - 12, 2);
+    expect(during[b]).toBeCloseTo(before[b] + 12, 2);
+    expect(deleteSettlement(s.id)).toBe(true);
+    const after = calcNetBalances([a, b], expenses, getSettlements());
+    expect(after[a]).toBeCloseTo(before[a], 2);
+    expect(after[b]).toBeCloseTo(before[b], 2);
+  });
+
+  it('deleting an expense removes its effect on the books', () => {
+    const [a, b] = seedIds();
+    const e = addExpense(exp(a, 42, [[a, 22], [b, 20]] as never));
+    const withIt = calcNetBalances([a, b], [e], []);
+    expect(withIt[b]).toBeCloseTo(-20, 2);
+    expect(deleteExpense(e.id)).toBe(true);
+    expect(getExpenses().filter(x => x.id === e.id)).toHaveLength(0);
+    const without = calcNetBalances([a, b], [], []);
+    expect(without[a]).toBeCloseTo(0, 2);
+    expect(without[b]).toBeCloseTo(0, 2);
+  });
+
+  it('deleting an unknown id reports false and stores stay untouched', () => {
+    const [a] = seedIds();
+    addExpense(exp(a, 10.0, [[a, 10]] as never));
+    const expenseCount = getExpenses().length;
+    const settlementCount = getSettlements().length;
+    expect(deleteExpense('nope')).toBe(false);
+    expect(deleteSettlement('nope')).toBe(false);
+    expect(getExpenses()).toHaveLength(expenseCount);
+    expect(getSettlements()).toHaveLength(settlementCount);
   });
 });

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {
   addSettlement,
   calcNetBalances,
+  deleteSettlement,
   ensureSeeded,
   fmt,
   getExpenses,
@@ -188,12 +189,21 @@ export default function SettleUpPage() {
           <section aria-label="Past settlements">
             <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>Past settlements</h2>
             {history.map(s => (
-              <div key={s.id} style={{ padding: '10px 14px', borderRadius: 12, background: 'var(--ios-bg2)', marginBottom: 6, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <div key={s.id} style={{ padding: '10px 14px', borderRadius: 12, background: 'var(--ios-bg2)', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 13 }}>
                 <span style={{ color: 'var(--ios-label2)' }}>
                   {memberName(s.fromId)} → {memberName(s.toId)}
                   {s.note ? ` · ${s.note}` : ''}
                 </span>
-                <span style={{ fontWeight: 600 }}>{fmt(s.amount)}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontWeight: 600 }}>{fmt(s.amount)}</span>
+                  <button
+                    onClick={() => { deleteSettlement(s.id); load(activeId); }}
+                    aria-label={`Undo settlement: ${memberName(s.fromId)} to ${memberName(s.toId)}`}
+                    style={{ padding: '5px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--ios-separator)', cursor: 'pointer', background: 'var(--ios-bg2)', color: 'var(--ios-red)' }}
+                  >
+                    Undo
+                  </button>
+                </span>
               </div>
             ))}
           </section>
