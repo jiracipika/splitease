@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'motion/react';
 import {
   CATEGORIES,
   ensureSeeded,
@@ -13,6 +14,7 @@ import {
   type Expense,
   type Settlement,
 } from '@/lib/store';
+import { riseInY, staggerList } from '@/lib/motion-presets';
 
 interface ActivityRow {
   id: string;
@@ -74,46 +76,49 @@ export default function HistoryPage() {
           Every expense and settlement across your groups, newest first.
         </p>
 
-        {rows.map(a => (
-          <div
-            key={`${a.kind}-${a.id}`}
-            style={{
-              padding: 14,
-              borderRadius: 14,
-              background: 'var(--ios-bg2)',
-              boxShadow: 'var(--ios-shadow)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 13,
-              marginBottom: 8,
-              opacity: a.kind === 'settlement' ? 0.92 : 1,
-            }}
-          >
-            <span aria-hidden="true" style={{
-              width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-              background: a.kind === 'settlement' ? 'rgba(52,199,89,0.12)' : 'var(--ios-fill)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-            }}>
-              {a.emoji}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ios-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {a.title}
+        <motion.div variants={staggerList} initial="hidden" animate="show">
+          {rows.map(a => (
+            <motion.div
+              key={`${a.kind}-${a.id}`}
+              variants={riseInY}
+              style={{
+                padding: 14,
+                borderRadius: 14,
+                background: 'var(--ios-bg2)',
+                boxShadow: 'var(--ios-shadow)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 13,
+                marginBottom: 8,
+                opacity: a.kind === 'settlement' ? 0.92 : 1,
+              }}
+            >
+              <span aria-hidden="true" style={{
+                width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+                background: a.kind === 'settlement' ? 'rgba(52,199,89,0.12)' : 'var(--ios-fill)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+              }}>
+                {a.emoji}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ios-label)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {a.title}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--ios-label3)' }}>
+                  {a.detail} · {a.groupLabel} · {fmtDate(a.date)}
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--ios-label3)' }}>
-                {a.detail} · {a.groupLabel} · {fmtDate(a.date)}
+              <div style={{
+                fontSize: a.kind === 'settlement' ? 15 : 16,
+                fontWeight: 700,
+                color: a.kind === 'settlement' ? 'var(--ios-green)' : 'var(--ios-label)',
+                whiteSpace: 'nowrap',
+              }}>
+                {a.kind === 'settlement' ? '−' : ''}{fmt(a.amount)}
               </div>
-            </div>
-            <div style={{
-              fontSize: a.kind === 'settlement' ? 15 : 16,
-              fontWeight: 700,
-              color: a.kind === 'settlement' ? 'var(--ios-green)' : 'var(--ios-label)',
-              whiteSpace: 'nowrap',
-            }}>
-              {a.kind === 'settlement' ? '−' : ''}{fmt(a.amount)}
-            </div>
-          </div>
-        ))}
+            </motion.div>
+          ))}
+        </motion.div>
 
         {rows.length === 0 && hydrated && (
           <p style={{ textAlign: 'center', padding: '32px 0', fontSize: 14, color: 'var(--ios-label3)' }}>

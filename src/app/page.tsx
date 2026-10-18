@@ -1,7 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { getGroups, getExpenses, getMembers, ensureSeeded, type Group, type Expense } from '@/lib/store';
+import { hoverLift, pressSpring, tapPress } from '@/lib/motion-presets';
+
+const MotionLink = motion.create(Link);
 
 export default function Landing() {
   const [groups, setGroups] = useState<Group[]>([]);
@@ -72,15 +76,15 @@ export default function Landing() {
         <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.4px', marginBottom: 20, color: 'var(--ios-label)' }}>Features</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {FEATURES.map(f => (
-            <Link key={f.href} href={f.href} style={{
+            <MotionLink key={f.href} href={f.href} whileHover={hoverLift} whileTap={tapPress} transition={pressSpring} style={{
               padding: 20, borderRadius: 16, background: 'var(--ios-bg2)',
               boxShadow: 'var(--ios-shadow)',
-              textDecoration: 'none', transition: 'transform 0.2s ease',
+              textDecoration: 'none', display: 'block',
             }}>
               <div style={{ fontSize: 28, marginBottom: 8 }}>{f.icon}</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ios-label)', marginBottom: 4 }}>{f.label}</div>
               <div style={{ fontSize: 13, color: 'var(--ios-label3)', lineHeight: 1.4 }}>{f.desc}</div>
-            </Link>
+            </MotionLink>
           ))}
         </div>
       </div>

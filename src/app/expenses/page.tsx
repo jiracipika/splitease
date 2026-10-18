@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   CATEGORIES,
   addExpense,
@@ -15,6 +16,16 @@ import {
   type Expense,
   type Group,
 } from '@/lib/store';
+import {
+  collapseOut,
+  panelIn,
+  panelOut,
+  pressSpring,
+  riseIn,
+  staggerList,
+  tapPress,
+  tapPressSmall,
+} from '@/lib/motion-presets';
 
 const CATEGORY_KEYS = Object.keys(CATEGORIES) as Category[];
 
@@ -106,17 +117,19 @@ export default function Expenses() {
             )}
           </div>
           {groups.length > 0 && (
-            <button onClick={() => setShowAdd(v => !v)} aria-expanded={showAdd} style={{ padding: '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'var(--ios-green)', color: '#fff' }}>+ Add</button>
+            <motion.button whileTap={tapPressSmall} transition={pressSpring} onClick={() => setShowAdd(v => !v)} aria-expanded={showAdd} style={{ padding: '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'var(--ios-green)', color: '#fff' }}>+ Add</motion.button>
           )}
         </div>
 
         {/* Group switcher */}
         {groups.length > 0 && (
-          <div role="tablist" aria-label="Choose group" style={{ display: 'flex', gap: 6, marginBottom: 18, overflowX: 'auto' }}>
+          <motion.div role="tablist" aria-label="Choose group" style={{ display: 'flex', gap: 6, marginBottom: 18, overflowX: 'auto' }}>
             {groups.map(g => (
-              <button
+              <motion.button
                 key={g.id}
                 role="tab"
+                whileTap={tapPressSmall}
+                transition={pressSpring}
                 aria-selected={activeGroupId === g.id}
                 onClick={() => selectGroup(g.id)}
                 style={{
@@ -126,13 +139,21 @@ export default function Expenses() {
                 }}
               >
                 {g.emoji} {g.name}
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
         )}
 
-        {showAdd && (
-          <div style={{ padding: 16, borderRadius: 14, background: 'var(--ios-bg2)', boxShadow: 'var(--ios-shadow)', marginBottom: 20 }}>
+        <AnimatePresence initial={false}>
+          {showAdd && (
+            <motion.div
+              key="add-expense-panel"
+              initial={{ height: 0, opacity: 0 }}
+              animate={panelIn}
+              exit={panelOut}
+              style={{ overflow: 'hidden', marginBottom: 20 }}
+            >
+              <div style={{ padding: 16, borderRadius: 14, background: 'var(--ios-bg2)', boxShadow: 'var(--ios-shadow)' }}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               {CATEGORY_KEYS.map(c => (
                 <button
@@ -166,8 +187,10 @@ export default function Expenses() {
               <button onClick={submit} disabled={!desc.trim() || !amount} style={{ flex: 1, padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', cursor: desc.trim() && amount ? 'pointer' : 'default', background: desc.trim() && amount ? 'var(--ios-blue)' : 'var(--ios-fill2)', color: desc.trim() && amount ? '#fff' : 'var(--ios-label3)' }}>Add Expense</button>
               <button onClick={() => { setShowAdd(false); setError(null); }} style={{ padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600, border: '1px solid var(--ios-separator)', cursor: 'pointer', background: 'var(--ios-bg2)', color: 'var(--ios-label)' }}>Cancel</button>
             </div>
-          </div>
-        )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -194,16 +217,28 @@ export default function Expenses() {
 
         {/* Filter */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto' }}>
-          <button onClick={() => setFilter('all')} aria-pressed={filter === 'all'} style={{ padding: '6px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', background: filter === 'all' ? 'var(--ios-label)' : 'var(--ios-bg2)', color: filter === 'all' ? '#fff' : 'var(--ios-label2)', whiteSpace: 'nowrap' }}>All</button>
+          <motion.button whileTap={tapPressSmall} transition={pressSpring} onClick={() => setFilter('all')} aria-pressed={filter === 'all'} style={{ padding: '6px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', background: filter === 'all' ? 'var(--ios-label)' : 'var(--ios-bg2)', color: filter === 'all' ? '#fff' : 'var(--ios-label2)', whiteSpace: 'nowrap' }}>All</motion.button>
           {members.map(m => (
-            <button key={m.id} onClick={() => setFilter(m.id)} aria-pressed={filter === m.id} style={{ padding: '6px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', background: filter === m.id ? 'var(--ios-label)' : 'var(--ios-bg2)', color: filter === m.id ? '#fff' : 'var(--ios-label2)', whiteSpace: 'nowrap' }}>{m.name}</button>
+            <motion.button key={m.id} whileTap={tapPressSmall} transition={pressSpring} onClick={() => setFilter(m.id)} aria-pressed={filter === m.id} style={{ padding: '6px 14px', borderRadius: 10, fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer', background: filter === m.id ? 'var(--ios-label)' : 'var(--ios-bg2)', color: filter === m.id ? '#fff' : 'var(--ios-label2)', whiteSpace: 'nowrap' }}>{m.name}</motion.button>
           ))}
         </div>
 
         {/* List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map(e => (
-            <div key={e.id} style={{ padding: 14, borderRadius: 14, background: 'var(--ios-bg2)', boxShadow: 'var(--ios-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <motion.div
+          key={`${activeGroupId}:${filter}`}
+          variants={staggerList}
+          initial="hidden"
+          animate="show"
+          style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+        >
+          <AnimatePresence>
+            {filtered.map(e => (
+              <motion.div
+                key={e.id}
+                variants={riseIn}
+                exit={collapseOut}
+                style={{ padding: 14, borderRadius: 14, background: 'var(--ios-bg2)', boxShadow: 'var(--ios-shadow)', display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden' }}
+              >
               <span aria-hidden="true" style={{ fontSize: 26 }}>{CATEGORIES[e.category].emoji}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ios-label)' }}>{e.description}</div>
@@ -212,7 +247,9 @@ export default function Expenses() {
                 </div>
               </div>
               <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--ios-label)' }}>{fmt(e.amount)}</div>
-              <button
+              <motion.button
+                whileTap={tapPressSmall}
+                transition={pressSpring}
                 onClick={() => {
                   if (confirmDeleteId === e.id) {
                     deleteExpense(e.id);
@@ -227,15 +264,16 @@ export default function Expenses() {
                 style={{ padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--ios-separator)', cursor: 'pointer', background: 'var(--ios-bg2)', color: 'var(--ios-red)', whiteSpace: 'nowrap' }}
               >
                 {confirmDeleteId === e.id ? 'Sure?' : '✕'}
-              </button>
-            </div>
-          ))}
+              </motion.button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
           {filtered.length === 0 && hydrated && (
             <p style={{ textAlign: 'center', padding: '28px 0', fontSize: 14, color: 'var(--ios-label3)' }}>
               {expenses.length === 0 ? 'No expenses yet.' : 'No expenses match this filter.'}
             </p>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

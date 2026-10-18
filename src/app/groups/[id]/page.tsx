@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { motion } from 'motion/react';
 import {
   CATEGORIES,
   calcNetBalances,
@@ -13,6 +14,7 @@ import {
   getMembers,
   simplifyDebts,
 } from '@/lib/store';
+import { riseIn, staggerList } from '@/lib/motion-presets';
 
 export default function GroupDetailPage() {
   const params = useParams<{ id: string }>();
@@ -123,18 +125,24 @@ export default function GroupDetailPage() {
             <h2 style={{ fontSize: 15, fontWeight: 600 }}>Expenses ({data.expenses.length})</h2>
             <Link href="/expenses" style={{ fontSize: 13, color: 'var(--ios-blue)' }}>View all →</Link>
           </div>
-          {data.expenses.map(e => (
-            <div key={e.id} style={{ padding: 14, borderRadius: 14, background: 'var(--ios-bg2)', boxShadow: 'var(--ios-shadow)', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <span aria-hidden="true" style={{ fontSize: 24 }}>{CATEGORIES[e.category].emoji}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ios-label)' }}>{e.description}</div>
-                <div style={{ fontSize: 12, color: 'var(--ios-label3)' }}>
-                  {memberName(e.paidById)} paid · {fmtDate(e.date)} · split {e.splits.length} way{e.splits.length !== 1 ? 's' : ''}
+          <motion.div variants={staggerList} initial="hidden" animate="show">
+            {data.expenses.map(e => (
+              <motion.div
+                key={e.id}
+                variants={riseIn}
+                style={{ padding: 14, borderRadius: 14, background: 'var(--ios-bg2)', boxShadow: 'var(--ios-shadow)', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}
+              >
+                <span aria-hidden="true" style={{ fontSize: 24 }}>{CATEGORIES[e.category].emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ios-label)' }}>{e.description}</div>
+                  <div style={{ fontSize: 12, color: 'var(--ios-label3)' }}>
+                    {memberName(e.paidById)} paid · {fmtDate(e.date)} · split {e.splits.length} way{e.splits.length !== 1 ? 's' : ''}
+                  </div>
                 </div>
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ios-label)' }}>{fmt(e.amount)}</div>
-            </div>
-          ))}
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ios-label)' }}>{fmt(e.amount)}</div>
+              </motion.div>
+            ))}
+          </motion.div>
           {data.expenses.length === 0 && (
             <p style={{ textAlign: 'center', padding: '28px 0', fontSize: 14, color: 'var(--ios-label3)' }}>
               No expenses yet — add one from the Expenses page.
