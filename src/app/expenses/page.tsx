@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   CATEGORIES,
   addExpense,
+  buildSplits,
   deleteExpense,
   ensureSeeded,
   fmt,
@@ -12,6 +13,7 @@ import {
   getGroups,
   getGroupExpenses,
   getMembers,
+  updateExpense,
   type Category,
   type Expense,
   type Group,
@@ -35,10 +37,14 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState('');
   const [category, setCategory] = useState<Category>('food');
+  const [date, setDate] = useState('');
+  const [splitMode, setSplitMode] = useState<'even' | 'custom'>('even');
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<'all' | string>('all');
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -53,6 +59,39 @@ export default function Expenses() {
     setHydrated(true);
   }, []);
 
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  const resetPanel = () => {
+    setEditingId(null);
+    setDesc('');
+    setAmount('');
+    setCategory('food');
+    setDate(today());
+    setSplitMode('even');
+    setCustomAmounts({});
+    setError(null);
+  };
+
+  const openAdd = () => {
+    resetPanel();
+    setShowAdd(true);
+  };
+
+  const openEdit = (e: Expense) => {
+    setEditingId(e.id);
+    setDesc(e.description);
+    setAmount(String(e.amount));
+    setPaidBy(e.paidById);
+    setCategory(e.category);
+    setDate(e.date);
+    const even = buildSplits(e.splits.map(s => s.memberId), e.amount);
+    const isEven = e.splits.every(s => s.amount === even.find(x => x.memberId === s.memberId)?.amount);
+    setSplitMode(isEven ? 'even' : 'custom');
+    setCustomAmounts(Object.fromEntries(e.splits.map(s => [s.memberId, String(s.amount)])));
+    setError(null);
+    setShowAdd(true);
+  };
+
   const selectGroup = (groupId: string) => {
     setActiveGroupId(groupId);
     setExpenses(getGroupExpenses(groupId).sort((a, b) => b.date.localeCompare(a.date)));
@@ -61,7 +100,16 @@ export default function Expenses() {
     // sensible default payer: first member
     const ms = getMembers().filter(m => group?.memberIds.includes(m.id));
     setPaidBy(ms[0]?.id ?? '');
+    setShowAdd(false);
+    resetPanel();
   };
+
+  const memberIds = members.map(m => m.id);
+  const customTotal = memberIds.reduce((sum, id) => {
+    const v = parseFloat(customAmounts[id] ?? '');
+    return sum + (Number.isFinite(v) ? v : 0);
+  }, 0);
+  const customRemaining = (parseFloat(amount) || 0) - customTotal;
 
   const submit = () => {
     setError(null);
@@ -69,29 +117,33 @@ export default function Expenses() {
     if (!desc.trim()) return setError('Please enter a description.');
     if (!Number.isFinite(value) || value <= 0) return setError('Please enter an amount greater than zero.');
     if (!paidBy) return setError('Pick who paid.');
+    if (!date) return setError('Pick a date.');
+    let splits;
     try {
-      const splitAmount = Math.round((value / members.length) * 100) / 100;
-      // Fix rounding drift on the last member so splits sum exactly.
-      const splits = members.map((m, i) => ({
-        memberId: m.id,
-        amount:
-          i === members.length - 1
-            ? Math.round((value - splitAmount * (members.length - 1)) * 100) / 100
-            : splitAmount,
-      }));
-      addExpense({
+      splits = buildSplits(
+        memberIds,
+        value,
+        splitMode === 'custom'
+          ? Object.fromEntries(memberIds.map(id => [id, parseFloat(customAmounts[id] ?? '') || 0]))
+          : undefined,
+      );
+      const data = {
         groupId: activeGroupId,
         description: desc.trim(),
         amount: value,
         paidById: paidBy,
         splits,
         category,
-        date: new Date().toISOString().slice(0, 10),
-      });
+        date,
+      };
+      if (editingId) {
+        updateExpense(editingId, data);
+      } else {
+        addExpense(data);
+      }
       setExpenses(getGroupExpenses(activeGroupId).sort((a, b) => b.date.localeCompare(a.date)));
       setShowAdd(false);
-      setDesc('');
-      setAmount('');
+      resetPanel();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save the expense.');
     }
@@ -116,8 +168,8 @@ export default function Expenses() {
               </p>
             )}
           </div>
-          {groups.length > 0 && (
-            <motion.button whileTap={tapPressSmall} transition={pressSpring} onClick={() => setShowAdd(v => !v)} aria-expanded={showAdd} style={{ padding: '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'var(--ios-green)', color: '#fff' }}>+ Add</motion.button>
+          {groups.length > 0 && !editingId && (
+            <motion.button whileTap={tapPressSmall} transition={pressSpring} onClick={openAdd} aria-expanded={showAdd} style={{ padding: '10px 20px', borderRadius: 12, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'var(--ios-green)', color: '#fff' }}>+ Add</motion.button>
           )}
         </div>
 
@@ -179,13 +231,59 @@ export default function Expenses() {
                 {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
             </div>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} aria-label="Date" style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px solid var(--ios-separator)', fontSize: 14, background: 'var(--ios-bg)', color: 'var(--ios-label)', marginBottom: 12, outline: 'none' }} />
+            <div role="radiogroup" aria-label="Split mode" style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              {(['even', 'custom'] as const).map(mode => (
+                <button
+                  key={mode}
+                  role="radio"
+                  aria-checked={splitMode === mode}
+                  onClick={() => setSplitMode(mode)}
+                  style={{
+                    flex: 1, padding: 8, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    border: splitMode === mode ? '2px solid var(--ios-blue)' : '1px solid var(--ios-separator)',
+                    background: splitMode === mode ? 'var(--ios-bg)' : 'var(--ios-bg2)',
+                    color: splitMode === mode ? 'var(--ios-blue)' : 'var(--ios-label2)',
+                  }}
+                >
+                  {mode === 'even' ? 'Split evenly' : 'Custom amounts'}
+                </button>
+              ))}
+            </div>
             {error && <p role="alert" style={{ fontSize: 13, color: 'var(--ios-red)', marginBottom: 10 }}>{error}</p>}
-            <p style={{ fontSize: 12, color: 'var(--ios-label3)', marginBottom: 10 }}>
-              Splits evenly across all {members.length} member{members.length !== 1 ? 's' : ''}.
-            </p>
+            {splitMode === 'even' ? (
+              <p style={{ fontSize: 12, color: 'var(--ios-label3)', marginBottom: 10 }}>
+                Splits evenly across all {members.length} member{members.length !== 1 ? 's' : ''}.
+              </p>
+            ) : (
+              <div style={{ marginBottom: 10 }}>
+                {members.map(m => (
+                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ flex: 1, fontSize: 13, color: 'var(--ios-label2)' }}>{m.name}</span>
+                    <span style={{ fontSize: 13, color: 'var(--ios-label3)' }}>$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={customAmounts[m.id] ?? ''}
+                      onChange={e => setCustomAmounts(cur => ({ ...cur, [m.id]: e.target.value }))}
+                      aria-label={`${m.name}'s share in dollars`}
+                      style={{ width: 96, padding: 8, borderRadius: 8, border: '1px solid var(--ios-separator)', fontSize: 14, background: 'var(--ios-bg)', color: 'var(--ios-label)', outline: 'none' }}
+                    />
+                  </div>
+                ))}
+                <p style={{ fontSize: 12, color: Math.abs(customRemaining) < 0.005 ? 'var(--ios-green)' : 'var(--ios-label3)', marginBottom: 0 }}>
+                  {Number.isFinite(parseFloat(amount)) && amount !== ''
+                    ? Math.abs(customRemaining) < 0.005
+                      ? '✓ Fully allocated'
+                      : `${customRemaining > 0 ? 'Remaining' : 'Over by'}: ${fmt(Math.abs(customRemaining))}`
+                    : 'Enter an amount above to allocate.'}
+                </p>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={submit} disabled={!desc.trim() || !amount} style={{ flex: 1, padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', cursor: desc.trim() && amount ? 'pointer' : 'default', background: desc.trim() && amount ? 'var(--ios-blue)' : 'var(--ios-fill2)', color: desc.trim() && amount ? '#fff' : 'var(--ios-label3)' }}>Add Expense</button>
-              <button onClick={() => { setShowAdd(false); setError(null); }} style={{ padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600, border: '1px solid var(--ios-separator)', cursor: 'pointer', background: 'var(--ios-bg2)', color: 'var(--ios-label)' }}>Cancel</button>
+              <button onClick={submit} disabled={!desc.trim() || !amount} style={{ flex: 1, padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600, border: 'none', cursor: desc.trim() && amount ? 'pointer' : 'default', background: desc.trim() && amount ? 'var(--ios-blue)' : 'var(--ios-fill2)', color: desc.trim() && amount ? '#fff' : 'var(--ios-label3)' }}>{editingId ? 'Save Changes' : 'Add Expense'}</button>
+              <button onClick={() => { setShowAdd(false); resetPanel(); }} style={{ padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600, border: '1px solid var(--ios-separator)', cursor: 'pointer', background: 'var(--ios-bg2)', color: 'var(--ios-label)' }}>Cancel</button>
             </div>
               </div>
             </motion.div>
@@ -247,6 +345,15 @@ export default function Expenses() {
                 </div>
               </div>
               <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--ios-label)' }}>{fmt(e.amount)}</div>
+              <motion.button
+                whileTap={tapPressSmall}
+                transition={pressSpring}
+                onClick={() => (editingId === e.id ? (setShowAdd(false), resetPanel()) : openEdit(e))}
+                aria-label={`Edit expense ${e.description}`}
+                style={{ padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--ios-separator)', cursor: 'pointer', background: 'var(--ios-bg2)', color: 'var(--ios-blue)', whiteSpace: 'nowrap' }}
+              >
+                {editingId === e.id ? 'Close' : '✎'}
+              </motion.button>
               <motion.button
                 whileTap={tapPressSmall}
                 transition={pressSpring}

@@ -20,6 +20,7 @@ vi.stubGlobal('localStorage', {
 import {
   addExpense,
   addSettlement,
+  buildSplits,
   calcNetBalances,
   deleteExpense,
   deleteSettlement,
@@ -28,6 +29,7 @@ import {
   getMembers,
   getSettlements,
   simplifyDebts,
+  updateExpense,
 } from '../src/lib/store';
 import type { Expense, Settlement } from '../src/lib/store';
 
@@ -117,6 +119,89 @@ describe('addExpense validation', () => {
     const [a] = seedIds();
     expect(() => addExpense(exp(a, 10.0, [['ghost-member', 10]] as never))).toThrow(/member of the group/);
     expect(() => addExpense({ ...exp(a, 10.0, [[a, 10]] as never), paidById: 'ghost-payer' })).toThrow(/member of the group/);
+  });
+});
+
+describe('buildSplits (even)', () => {
+  it('absorbs rounding drift so an even split sums exactly to the total', () => {
+    const splits = buildSplits(['a', 'b', 'c'], 100);
+    expect(splits).toEqual([
+      { memberId: 'a', amount: 33.33 },
+      { memberId: 'b', amount: 33.33 },
+      { memberId: 'c', amount: 33.34 },
+    ]);
+    const sum = splits.reduce((s, x) => s + x.amount, 0);
+    expect(sum).toBeCloseTo(100, 2);
+  });
+
+  it('handles a single member and cent-scale totals', () => {
+    expect(buildSplits(['a'], 42.0)).toEqual([{ memberId: 'a', amount: 42 }]);
+    expect(buildSplits(['a', 'b', 'c'], 0.01)).toEqual([
+      { memberId: 'a', amount: 0 },
+      { memberId: 'b', amount: 0 },
+      { memberId: 'c', amount: 0.01 },
+    ]);
+  });
+
+  it('rejects an empty or duplicated member list', () => {
+    expect(() => buildSplits([], 10)).toThrow(/at least one member/);
+    expect(() => buildSplits(['a', 'a'], 10)).toThrow(/more than once/);
+  });
+});
+
+describe('buildSplits (custom)', () => {
+  it('passes exact custom amounts through to the cent', () => {
+    expect(buildSplits(['a', 'b'], 10, { a: 7.5, b: 2.5 })).toEqual([
+      { memberId: 'a', amount: 7.5 },
+      { memberId: 'b', amount: 2.5 },
+    ]);
+    expect(buildSplits(['a', 'b', 'c'], 10.01, { a: 10, b: 0, c: 0.01 })).toEqual([
+      { memberId: 'a', amount: 10 },
+      { memberId: 'b', amount: 0 },
+      { memberId: 'c', amount: 0.01 },
+    ]);
+  });
+
+  it('rejects amounts that are short of or over the total', () => {
+    expect(() => buildSplits(['a', 'b'], 10, { a: 6, b: 3 })).toThrow(/short by 1\.00/);
+    expect(() => buildSplits(['a', 'b'], 10, { a: 6, b: 5 })).toThrow(/over by 1\.00/);
+  });
+
+  it('rejects missing entries, negatives, and members outside the split', () => {
+    expect(() => buildSplits(['a', 'b'], 10, { a: 10 })).toThrow(/amount for every member/);
+    expect(() => buildSplits(['a', 'b'], 10, { a: 12, b: -2 })).toThrow(/non-negative/);
+    expect(() => buildSplits(['a', 'b'], 10, { a: 5, b: 5, ghost: 0 } as never)).toThrow(/outside this split/);
+  });
+});
+
+describe('updateExpense (edit)', () => {
+  it('round-trips an edit: the stored expense and the books both change', () => {
+    const [a, b] = seedIds();
+    const e = addExpense(exp(a, 30, [[a, 10], [b, 20]] as never));
+    const before = calcNetBalances([a, b], getExpenses().filter(x => x.id === e.id), []);
+    expect(before[b]).toBeCloseTo(-20, 2);
+
+    updateExpense(e.id, exp(a, 30, [[a, 0], [b, 30]] as never));
+    const stored = getExpenses().find(x => x.id === e.id);
+    expect(stored?.splits).toEqual([{ memberId: a, amount: 0 }, { memberId: b, amount: 30 }]);
+    const after = calcNetBalances([a, b], [stored!], []);
+    expect(after[b]).toBeCloseTo(-30, 2);
+  });
+
+  it('runs the same validation as addExpense and rejects unknown ids', () => {
+    const [a] = seedIds();
+    const e = addExpense(exp(a, 10, [[a, 10]] as never));
+    expect(() => updateExpense(e.id, exp(a, 10, [[a, 9]] as never))).toThrow(/add up exactly/);
+    expect(() => updateExpense('nope', exp(a, 10, [[a, 10]] as never))).toThrow(/no longer exists/);
+    // A rejected edit leaves the stored expense untouched.
+    expect(getExpenses().find(x => x.id === e.id)?.splits).toEqual([{ memberId: a, amount: 10 }]);
+  });
+
+  it('buildSplits output feeds addExpense directly (UI contract)', () => {
+    const [a, b] = seedIds();
+    const splits = buildSplits([a, b], 10, { [a]: 6.66, [b]: 3.34 });
+    const e = addExpense({ ...exp(a, 10, [] as never), splits });
+    expect(getExpenses().find(x => x.id === e.id)?.amount).toBe(10);
   });
 });
 

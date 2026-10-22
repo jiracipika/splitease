@@ -406,6 +406,60 @@ export function deleteExpense(id: string): boolean {
   return true;
 }
 
+/**
+ * Build splits for an expense. Without customAmounts this is an even split
+ * with the rounding drift absorbed by the last member so the sum is exact.
+ * With customAmounts (memberId -> dollars) every member needs an entry, the
+ * amounts must be non-negative, and the sum must match the total to the cent.
+ */
+export function buildSplits(memberIds: string[], total: number, customAmounts?: Record<string, number>): Split[] {
+  if (memberIds.length === 0) {
+    throw new Error('Pick at least one member to split between.');
+  }
+  if (new Set(memberIds).size !== memberIds.length) {
+    throw new Error('An expense cannot include the same member more than once.');
+  }
+  const totalCents = toCents(total);
+  if (!customAmounts) {
+    const evenCents = Math.floor(totalCents / memberIds.length);
+    const lastCents = totalCents - evenCents * (memberIds.length - 1);
+    return memberIds.map((memberId, i) => ({
+      memberId,
+      amount: fromCents(i === memberIds.length - 1 ? lastCents : evenCents),
+    }));
+  }
+  const missing = memberIds.filter(id => customAmounts[id] === undefined);
+  if (missing.length > 0) {
+    throw new Error('Enter a custom amount for every member.');
+  }
+  const unknown = Object.keys(customAmounts).filter(id => !memberIds.includes(id));
+  if (unknown.length > 0) {
+    throw new Error('Custom amounts include a member outside this split.');
+  }
+  const sumCents = memberIds.reduce((sum, id) => sum + toCents(customAmounts[id]), 0);
+  if (sumCents !== totalCents) {
+    const diff = Math.abs(totalCents - sumCents) / 100;
+    const direction = sumCents < totalCents ? 'short' : 'over';
+    throw new Error(`Custom amounts are ${direction} by ${diff.toFixed(2)}.`);
+  }
+  return memberIds.map(memberId => ({ memberId, amount: customAmounts[memberId] }));
+}
+
+/** Replace an expense's fields. Throws on an unknown id or invalid data. */
+export function updateExpense(id: string, data: Omit<Expense, 'id'>): Expense {
+  assertExpenseIsValid(data);
+  const expenses = getExpenses();
+  const index = expenses.findIndex(e => e.id === id);
+  if (index === -1) {
+    throw new Error('That expense no longer exists.');
+  }
+  const updated: Expense = { ...data, id };
+  const next = [...expenses];
+  next[index] = updated;
+  save(KEYS.expenses, next);
+  return updated;
+}
+
 // ─── Settlements ──────────────────────────────────────────────────────────────
 
 export function getSettlements(): Settlement[] {
